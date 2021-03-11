@@ -1,0 +1,162 @@
+module buzzer
+(
+input clk,
+input tri_uart,
+input uart_en,
+input rst_n,
+
+input [311:0] data_uart,
+
+output reg stop,out
+
+);
+
+localparam size = 40;
+localparam IDLE = 2'b00;
+localparam LOAD1 = 2'b01;
+localparam LOAD2 = 2'b10;
+localparam MAIN = 2'b11;
+reg[7:0] tone;
+reg[5:0] num;
+reg[15:0] time_end;
+reg[17:0] time_cnt;
+reg[size*8-1:0] music;
+reg[1:0] state;
+reg[23:0] num_delay;
+
+
+reg [2:0]judge;
+
+always @(posedge clk_buzzer  or negedge rst_n)
+    begin
+	if(!rst_n) begin
+	 stop = 1'b1;
+	 music = 312'd0;
+	 state = 2'b00;
+	 num = 6'd40;
+
+	end else begin
+	
+	 case(state)
+	     IDLE:
+		  begin
+		  music = 312'd0;
+		  case(judge)
+			  2'b01:state = LOAD1;
+			  2'b10:state = LOAD2;
+			  default:state =IDLE;
+			  endcase
+			  end
+			
+	      LOAD1:
+		  begin
+			  music = 120'h0606070708080a0a0d0d00;
+			  num = 6'd14;
+			  state = MAIN;
+			 end
+		  LOAD2:
+		  begin
+		  music = data_uart;
+		  num = 6'd40;
+		  state = MAIN;
+		  stop = 1'b0;
+		  end
+		  MAIN:
+		  begin
+		  
+	     if(num == 0)
+		      begin
+	            num = 6'd0;
+				state = IDLE;
+				stop = 1'b1; 
+				end
+		  else
+		      begin
+				  num  = num - 1'b1;
+				  tone = music[((num*8)-1)-:8];
+	          
+				end
+		  end
+		  default:state = IDLE;
+    endcase
+	end
+	end
+	
+always@(posedge clk  or negedge rst_n)
+    begin
+		if(!rst_n) begin
+        time_cnt = 0;
+	    end else begin
+	 case(tone)
+	      5'd1:	 	time_end = 16'd45872;	//L1,
+		  5'd2: 	time_end = 16'd40858;	//L2,
+		  5'd3: 	time_end = 16'd36408;	//L3,
+		  5'd4:	 	time_end = 16'd34364;	//L4,
+		  5'd5:	 	time_end = 16'd30612;	//L5,
+		  5'd6:		time_end = 16'd27273;	//L6,
+		  5'd7: 	time_end = 16'd24296;	//L7,
+		  5'd8:     time_end = 16'd22931;	//M1,
+		  5'd9:     time_end = 16'd20432;	//M2,
+		  5'd10:    time_end = 16'd18201;	//M3,
+		  5'd11:    time_end = 16'd17180;	//M4,
+		  5'd12:    time_end = 16'd15306;	//M5,
+		  5'd13:    time_end = 16'd13636;	//M6,
+		  5'd14:    time_end = 16'd12148;	//M7,
+		  5'd15:	time_end =	16'd5740;	//H1,0f
+		  5'd16:	time_end =	16'd5107;	//H2,11
+		  5'd17:	time_end =	16'd4549;	//H3,12
+		  5'd18:	time_end =	16'd4294;	//H4,13
+		  5'd19:	time_end =	16'd3825;	//H5,14
+		  5'd20:	time_end =	16'd3408;	//H6,15
+		  5'd21:	time_end =	16'd3036;	//H7,16
+		  default:  time_end = 16'd0;
+	 endcase
+	 if(time_end == 0||num == 0)
+	     out <= 1'b0;
+	 else if(time_cnt >= time_end)
+	     begin
+		  out <= ~out;
+		  time_cnt <= 1'b0;
+		  end
+	 else
+	     time_cnt <= time_cnt + 1'b1;
+		 end 
+	 end
+always @(posedge clk or negedge rst_n) begin
+	if(!rst_n) begin
+	 num_delay=24'd0;
+	
+	end else begin
+		if(num_delay != 0)
+			 begin
+			  num_delay = num_delay - 1'b1;
+			  end
+	    else
+			 begin
+			  judge[0] = uart_en;
+			  judge[1] =tri_uart;
+			  if(judge != 0)
+				 begin
+				  num_delay = 4000000;
+				  end
+			  else
+				  num_delay = 24'd0;
+			  end
+		end
+	end
+
+		  
+	//例化分频模块，产生一个1s周期的时钟信号
+	divide #
+	(								  
+	.WIDTH(23),		
+	.N(6000000)		
+	)
+	u_divide
+	(
+	.clk(clk),		
+	.rst_n(rst_n),		
+	.clkout(clk_buzzer)		
+	);
+		
+endmodule
