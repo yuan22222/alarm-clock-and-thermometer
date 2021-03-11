@@ -1,0 +1,98 @@
+module uart_rx
+(
+input clk,
+input rst_n,
+input uart_in,
+output reg  [311:0] receive,//39B
+output reg pwm_en
+);
+localparam IDLE = 2'b00;
+localparam CHEC = 2'b01;
+localparam RECE = 2'b11;
+localparam TIMES_L = 1250;
+
+reg[1:0] state;
+reg[10:0] times,times_zero;
+reg[5:0] num;
+reg[5:0] B;
+
+
+
+always @(posedge clk or negedge rst_n) begin
+	if(!rst_n)
+	 begin
+		 times = 0;
+		 times_zero = 0;
+		 state = 0;
+		 num = 0;
+		 B = 0;
+		 receive = 0;
+	 end else begin
+		 if(pwm_en == 1)
+			 pwm_en = 0;
+		 case(state)
+			 IDLE:
+			  begin
+			  if(uart_in == 0)
+					state = CHEC;
+			  end
+			  CHEC:
+			  begin
+			  if(uart_in == 0)
+				times_zero = times_zero+1'b1;
+				times = times+1'b1;
+			  if(times >= TIMES_L)
+				  begin
+					if(times_zero >= (TIMES_L>>1))
+						begin
+						 state = RECE;
+						 times = 0;
+						 times_zero = 0;
+						 end
+				   else
+						begin
+						 state = IDLE ;
+						 times = 0;
+						 times_zero = 0;
+						 end
+					end
+			end
+			  RECE:
+			  begin
+			  times = times+1;
+			  if(uart_in == 0)
+				  begin
+					times_zero = times_zero+1'b1;
+					end
+			  if(times >= TIMES_L)
+				  begin
+					if(times_zero >= (TIMES_L>>1))
+						begin
+						 receive[B*8+num] = 1'b0;
+						 end
+					else
+						begin
+						 receive[B*8+num] = 1'b1;
+						 end
+					num = num+1'b1;
+					times = 0;
+					times_zero = 0;
+				   end
+			  if(num > 7)
+				   begin
+					state = IDLE;
+					num = 0;
+					times = 0;
+					times_zero = 0;
+					B = B+1'b1;
+					if(B == 39)
+						begin
+						 B = 0;
+						 pwm_en = 1;
+						 end
+					end
+			end
+		    endcase
+		 end
+	 end
+endmodule
