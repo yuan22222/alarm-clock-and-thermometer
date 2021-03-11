@@ -1,0 +1,195 @@
+module clock_set(
+
+          input                 clk,
+		  input                 rst_n,
+		  input       [2:0]     key,
+		  output reg [31:0]	time_out,
+		  output reg             uart_en
+		      
+			  );
+		      
+ 
+        wire  [2:0]  key_pulse;
+		wire		      clk1h;        //1Hz时钟
+		reg [3:0]hour1_set = 4'd0;
+		reg [3:0]hour2_set = 4'd0;
+		reg [3:0]min1_set  = 4'd0;
+		reg [3:0]min2_set  = 4'd0;
+		
+		reg [3:0] hour1 = 4'd1;
+		reg [3:0] hour2 = 4'd2;
+		reg [3:0] min1  = 4'd5;
+		reg [3:0] min2 = 4'd5;
+		reg [5:0] count_sec = 6'd0;
+		 
+				//同步临时变量
+		reg [3:0] hour1_temp1;
+		reg [3:0] hour2_temp1;
+		reg [3:0] min1_temp1;
+		reg [3:0] min2_temp1;
+		
+		reg [3:0] hour1_temp2;
+		reg [3:0] hour2_temp2;
+		reg [3:0] min1_temp2;
+		reg [3:0] min2_temp2;
+	
+		
+		reg Time_count_flag =1'b1;     // 计数与时间设置标志位
+		
+		
+		always@(posedge clk or negedge rst_n)begin
+			if(!rst_n)begin
+				Time_count_flag <= 1'b0;
+				end
+			else if(key_pulse[0])begin
+				Time_count_flag <= ~Time_count_flag;
+			end
+			else begin
+				Time_count_flag <= Time_count_flag;
+				end
+		end
+			
+
+	   always@(posedge clk or negedge rst_n)begin
+		   if(!rst_n)begin
+			   hour1_set<=hour1;
+			   hour2_set<=hour2;
+			   min1_set<=min1;
+			   min2_set<=min2;
+	       end
+			else if(Time_count_flag)begin   
+				   if(key_pulse[1])begin
+						hour2_set <= hour2_set + 4'd1;
+						if(hour2_set==4'd9)begin
+						 hour2_set <= 4'd0;
+						 hour1_set <= hour1_set +4'd1;
+						 end
+						 else if(hour1_set==4'd2&&hour2_set==4'd3)begin
+							    hour2_set<=4'd0;
+								hour1_set<=4'd0;
+						end
+				   end
+											   
+				  else if(key_pulse[2]) begin
+					 min2_set <= min2_set +4'd1;
+					if(min2_set == 4'd9) begin
+						  min2_set <=4'd0;
+						  min1_set <=min1_set+4'd1;
+					      if(min1_set==4'd5)begin
+							  min1_set<=4'd0;
+							  min2_set<=4'd0;
+						  end
+					end
+				 end
+		end
+        else 
+			begin
+                hour1_set <= hour1;
+                hour2_set <= hour2; 
+                 min1_set <= min1;
+                 min2_set <= min2;				
+           end
+    end	   
+					
+		always @(posedge clk )begin
+		        hour1_temp1 <= hour1_set ;
+				hour1_temp2<=hour1_temp1;
+                hour2_temp1<=hour2_set ; 
+				hour2_temp2<=hour2_temp1;
+				
+                 min1_temp1 <= min1_set ;
+				 min1_temp2 <= min1_temp1;
+                 min2_temp1<= min2_set ;
+                 min2_temp2<= min2_temp1;				 
+end
+
+
+	 
+               
+
+		
+		always@(posedge clk1h or negedge rst_n)
+			begin
+				if(!rst_n)begin
+                    hour1 <=4'd0;
+                    hour2 <=4'd0;
+                    min1  <=4'd0;
+					min2  <=4'd0;
+					uart_en<= 1'b0;
+				end
+				
+               else if(!Time_count_flag)
+				   begin
+					   
+					   count_sec <= count_sec +6'd1;
+					   if(uart_en ==1'b1)begin
+						   uart_en <=1'b0;
+					   end
+					   
+					   
+					   if(count_sec == 6'd59)begin
+						   count_sec<=6'd0;
+						   min2 <= min2 +4'd1;
+						   if(min2 == 4'd9)begin
+							   min2<=4'd0;
+							   min1<=min1+4'd1;
+							   if(min1==4'd5)begin
+								   min1<=4'd0;
+								    hour2<= hour2+4'd1;
+									uart_en <=1'b1;
+									if(hour2==4'd9)begin
+										hour2<=4'd0;
+										hour1<=hour1+4'd1;
+									end
+									else if(hour1==4'd2&&hour2==4'd3)begin
+											hour1<=4'd0;
+											hour2<=4'd0;
+									end
+							   end
+					   end
+				 end
+			end
+			else begin
+				  count_sec<=6'd0;
+				  hour1 <=hour1_temp2;
+					hour2 <=hour2_temp2;
+					min1  <=min1_temp2;
+					min2 <=min2_temp2;
+			end
+	end
+	
+	
+	
+		
+		
+				   
+		always@(posedge clk or negedge rst_n)
+		if(!rst_n) time_out <= 32'b0;
+		else begin 	
+			
+				time_out[27:24] <= hour1;	      //*************************oled显示时间*************************//
+				time_out[19:16] <= hour2;
+				time_out[11:8]  <= min1;	
+				time_out[3:0]   <= min2;
+            end	
+	
+				   
+				   
+            // 启动/暂停按键进行消抖
+	debounce #(.N(3)) U2 (
+				.clk(clk),
+				.rst(rst_n),
+				.key(key),
+				.key_pulse(key_pulse)
+				);
+				
+	// 用于分出一个1Hz的频率	
+	divide #(.WIDTH(32),.N(12000000)) U1 ( 
+			.clk(clk),
+			.rst_n(rst_n),      
+			.clkout(clk1h)
+			);      				   
+							
+ 					
+      
+ endmodule
