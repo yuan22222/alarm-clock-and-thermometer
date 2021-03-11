@@ -1,0 +1,111 @@
+module Connect
+(
+		 input                   clk,
+		 input                 rst_n,
+		 input [2:0]            key,
+		 inout              one_wire,
+		 input              uart_rx,
+		 
+		output              beeper,
+		output              uart_tx,
+        output			    oled_csn,	//OLCD液晶屏使能
+		output				oled_rst,	//OLCD液晶屏复位
+		output				oled_dcn,	//OLCD数据指令控制
+		output				oled_clk,	//OLCD时钟信号
+		output				oled_dat	//OLCD数据信号
+
+);
+
+
+
+	   wire [31:0] tim;
+	   wire [31:0] temperature;
+	   wire one_wire;
+       tempcontrol tempcontrol_uut
+	   (
+	     .clk(clk),
+		 .rst_n(rst_n),
+		 .one_wire(one_wire),
+		 .temp_out(temperature)
+	  
+	   );
+	   
+	   
+	   
+	   OLED12832 OLED12832_uut
+		(
+		.clk					(clk			),	// system clock
+		.rst_n					(rst_n			),	// system reset, active low
+		.tim                   (tim             ),
+	    .temperature  			(temperature	    ),	// ds18b20z data_out
+		.display_flag           ( display_flag   ),
+		.oled_csn				(oled_csn		),
+		.oled_rst				(oled_rst		),
+		.oled_dcn				(oled_dcn		),
+		.oled_clk				(oled_clk		),
+		.oled_dat				(oled_dat		)
+
+		);
+		wire uart_en;
+		 clock_set clock_set1
+       (
+                    .clk(clk),
+		            .rst_n(rst_n),
+		            .key(key),
+		  	        .time_out(tim),
+					.uart_en(uart_en)
+		       
+	   );
+	   wire clk_out;
+	   
+		uart_tx uart_tx_uut
+	(
+		 .tem_g(temperature[19:16]),
+		 .tem_s(temperature[27:24]),
+		 .tem_d(temperature[11:8]),
+		. rst_n(rst_n),
+		. clk_tx(clk_out),
+		. en(uart_en),
+		. uart_out(uart_tx)
+	);  
+
+
+    wire display_flag;
+	wire pwm_en;
+	wire [311:0] receive;
+	buzzer buzzer_uut
+	(
+	    .clk(clk),
+		.rst_n(rst_n),
+	    .tri_uart(pwm_en),
+	    .data_uart(receive),
+        .uart_en(uart_en),
+	    .stop(display_flag),
+		.out(beeper)
+
+	);
+
+
+
+	uart_rx uart_rx_uut
+	(
+		 .clk(clk),
+		 .rst_n(rst_n),
+		 .uart_in(uart_rx),
+		 .receive(receive),//39B
+		 .pwm_en(pwm_en)
+	);
+
+
+
+	clk_uart clk_uart_uut
+	(
+		 .clk_in(clk),
+		 .rst_n(rst_n),
+		 .clk_out(clk_out)
+	);
+
+
+
+	   
+endmodule		
