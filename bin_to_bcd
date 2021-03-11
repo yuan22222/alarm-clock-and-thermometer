@@ -1,0 +1,47 @@
+// --------------------------------------------------------------------
+// >>>>>>>>>>>>>>>>>>>>>>>>> COPYRIGHT NOTICE <<<<<<<<<<<<<<<<<<<<<<<<<
+// --------------------------------------------------------------------
+// Module:bin_to_bcd 
+// 
+// Author: Step
+// 
+// Description: Translate binary code to bcd code
+// 
+// Web: www.stepfpga.com
+// 
+// --------------------------------------------------------------------
+// Code Revision History :
+// --------------------------------------------------------------------
+// Version: |Mod. Date:   |Changes Made:
+// V1.0     |2015/11/11   |Initial ver
+// --------------------------------------------------------------------
+module bin_to_bcd #
+(
+parameter B_SIZE = 21
+)
+(
+input						rst_n,			// system reset, active low
+input		[B_SIZE-1:0]	bin_code,		// binary code
+output	reg	[B_SIZE+3:0]	bcd_code		// bcd code
+);
+
+reg		[2*B_SIZE+3:0]		shift_reg;   
+always@(bin_code or rst_n)begin      
+	shift_reg= {25'h0,bin_code};          
+	if(!rst_n) bcd_code <= 0;      
+	else begin         
+		repeat(B_SIZE)//repeat B_SIZE times
+			begin                                
+				if (shift_reg[24:21] >= 5) shift_reg[24:21] = shift_reg[24:21] + 2'b11;
+				if (shift_reg[28:25] >= 5) shift_reg[28:25] = shift_reg[28:25] + 2'b11;
+				if (shift_reg[32:29] >= 5) shift_reg[32:29] = shift_reg[32:29] + 2'b11;
+				if (shift_reg[36:33] >= 5) shift_reg[36:33] = shift_reg[36:33] + 2'b11;
+				if (shift_reg[40:37] >= 5) shift_reg[40:37] = shift_reg[40:37] + 2'b11;
+				if (shift_reg[44:41] >= 5) shift_reg[44:41] = shift_reg[44:41] + 2'b11;
+				shift_reg = shift_reg << 1; 
+			end         
+		bcd_code<=shift_reg[45:21];   
+	end  
+end
+
+endmodule
