@@ -1,0 +1,55 @@
+module tempcontrol(
+         input clk,
+		 input rst_n, 
+		 inout       one_wire,
+		 output reg [31:0] temp_out
+		 );
+		 
+		 
+	
+		
+		wire	[15:0]	data_out;
+		//Drive DS18B20Z to get temperature code
+		DS18B20Z DS18B20Z_uut
+		(
+		.clk					(clk			),	// system clock
+		.rst_n					(rst_n			),	// system reset, active low
+		.one_wire				(one_wire		),	// ds18b20z one-wire-bus
+		.data_out				(data_out		)	// ds18b20z data_out
+		);
+
+
+
+
+		// judge sign of temperature
+		wire temperature_flag = data_out[15:11]? 1'b0:1'b1;
+		// complement if negative
+		wire [10:0] temperature_code = temperature_flag? data_out[10:0]:(~data_out[10:0])+1'b1; 
+		// translate temperature_code to real temperature
+		wire [20:0] bin_code = temperature_code * 16'd625;
+		wire [24:0] bcd_code; //十位[23:20],个位[19:16],小数位[14:12]
+		//Translate binary code to bcd code
+		bin_to_bcd bin_to_bcd_uut
+		(
+		.rst_n					(rst_n			),	// system reset, active low
+		.bin_code				(bin_code		),	// binary code
+		.bcd_code				(bcd_code		)	// bcd code
+		);
+		
+		
+		
+		
+		always@(posedge clk or negedge rst_n) begin     
+		if(!rst_n)begin
+			temp_out <= 32'b0;
+		end 
+		else begin			
+			temp_out <= {4'b0,bcd_code[23:20],4'b0,bcd_code[19:16],4'b0,bcd_code[15:12],8'b0};
+	 end
+	end
+	
+		
+		
+			
+	
+endmodule
