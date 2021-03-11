@@ -1,0 +1,23 @@
+module clk_uart
+(
+input      clk_in,
+input      rst_n,
+output reg clk_out
+);
+
+reg [9:0] times_lf;
+
+always@(posedge clk_in or negedge rst_n)
+    begin
+		if(!rst_n) begin
+			times_lf<=10'h0;
+			clk_out<=1'b1;	
+		end else if(times_lf < 10'd625)
+			    times_lf <= times_lf+1'b1;
+		    else
+			    begin			
+				  times_lf <= 10'h0;
+				  clk_out <= ~clk_out;		  
+			    end
+	end
+endmodule
