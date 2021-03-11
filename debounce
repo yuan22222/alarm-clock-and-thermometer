@@ -27,7 +27,7 @@ module debounce (clk,rst,key,key_pulse);
         reg     [N-1:0]   key_rst_pre;                //定义一个寄存器型变量存储上一个触发时的按键值
         reg     [N-1:0]   key_rst;                    //定义一个寄存器变量储存储当前时刻触发的按键值
  
-        wire    [N-1:0]   key_edge;                   //检测到按键由高到低变化是产生一个高脉冲
+        wire    [N-1:0]   key_edge;                   //检测到按键由高到低变化是产生一个高脉chong
  
         //利用非阻塞赋值特点，将两个时钟触发时按键状态存储在两个寄存器变量中
         always @(posedge clk  or  negedge rst)
