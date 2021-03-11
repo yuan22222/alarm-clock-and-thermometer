@@ -1,0 +1,67 @@
+module uart_tx
+(
+	input[3:0]  tem_g,tem_s,tem_d,
+	input rst_n,
+	input clk_tx,
+	input en,
+	output reg uart_out
+);
+localparam IDLE = 2'b0;
+localparam SEND = 2'b1;
+reg flag_1,flag_2,state;
+reg[60:0] uart_data;
+reg[7:0] tab[9:0];
+reg[5:0] i;
+ 
+always @(posedge en  or negedge rst_n) begin
+	 if(!rst_n)
+	 begin
+		 flag_1 = 0;
+		 uart_data = 1;
+	 end else
+		 begin
+			 uart_data = {1'd1,8'he6,1'd0,1'd1,8'ha1,1'd0,1'd1,tab[tem_d],1'd0,1'd1,8'h2e,1'd0,1'd1,tab[tem_g],1'd0,1'd1,tab[tem_s],1'd0,1'd1};
+			 flag_1 = ~flag_1;
+		end
+	end
+	 
+	 
+always @(posedge clk_tx or negedge rst_n) begin
+	if(!rst_n)
+		begin
+			 tab[0] = 8'h30;
+			 tab[1] = 8'h31;
+			 tab[2] = 8'h32;
+			 tab[3] = 8'h33;
+			 tab[4] = 8'h34;
+			 tab[5] = 8'h35;
+			 tab[6] = 8'h36;
+			 tab[7] = 8'h37;
+			 tab[8] = 8'h38;
+			 tab[9] = 8'h39;
+			 flag_2 = 0;
+			 i = 0;
+			 state = IDLE;
+		 end else begin
+			 case(state)
+				 IDLE:
+				 if(flag_2 != flag_1)
+					  begin
+						flag_2 = flag_1;
+						state = SEND;
+						end
+				  SEND:
+				  if(i < 61)
+					  begin
+						uart_out = uart_data[i];
+						i = i+1'b1;
+						end
+				  else
+					  begin
+						i = 0;
+						state = IDLE;
+						end
+			endcase
+		end
+	 end 
+endmodule
